@@ -13,11 +13,11 @@ data wrangling challenges, which we specifically aim to resolve in this study.
 
 ## File framwork
 ├── R/
-│   └── analysis_utils.R      
+│   └── analysis_utils.R
 │
-├── 01_data_acquisition_cleaning.R 
-├── 02_spatial_integration.R       
-├── 03_analysis.R                 
-├── 04_visualization_report.Rmd   
+├── 01_data_acquisition_cleaning.R
+├── 02_spatial_integration.R
+├── 03_analysis.R
+├── 04_visualization_report.Rmd
 │
-└── README.md                      
+└── README.md
