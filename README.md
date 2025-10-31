@@ -10,3 +10,14 @@ drawn about market dynamics remain tentative and potentially misleading. We will
 York City as a case study to develop a reproducible pipeline for cleaning and integrating multi-source datasets
 related to the STR market. The complex data landscape of NYC provides an study environment to address these
 data wrangling challenges, which we specifically aim to resolve in this study.
+
+## File framwork
+├── R/
+│   └── analysis_utils.R      
+│
+├── 01_data_acquisition_cleaning.R 
+├── 02_spatial_integration.R       
+├── 03_analysis.R                 
+├── 04_visualization_report.Rmd   
+│
+└── README.md                      
