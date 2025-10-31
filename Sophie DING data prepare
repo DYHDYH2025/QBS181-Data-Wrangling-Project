@@ -1,0 +1,24 @@
+Project Setup
+Use Git control -- read.md created, branch established (10)
+Readme incomplete, requires final version. Must specify environment required to run code (e.g., R version, necessary packages) and execution steps
+Data Cleaning and Collection
+Webscraping for data collection (10)
+Download median household income, population density, and median rent for specific geographic levels (ZIP codes) in New York City
+Raw data source: ____.csv (listings.csv)
+NYC Airbnb data from Inside Airbnb
+NYC socioeconomic data
+Cleaning
+Use Webscraping or an API for Data Collection (5) & Use the tidyverse for data cleaning steps (5)
+
+Define a missing value pipeline (5)
+
+Handle missing data (document reasons for data imputation)
+Use relational data (5)
+Spatial join tables
+Define custom functions used in the analysis (5) & Build a simple library of your custom functions (10)
+Correlation analysis
+Build a multiple linear regression model (log-price)
+Build a dashboard of final results (5)
+Generate geospatial maps (heatmaps, choropleth maps)
+data_acquisition_cleaning.R
+
