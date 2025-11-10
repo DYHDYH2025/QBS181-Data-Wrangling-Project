@@ -1,0 +1,103 @@
+---
+title: "Data Cleaning"
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+
+```{r}
+# Step 7: read csv file
+library(tidyverse)
+library(janitor)
+library(skimr)
+library(lubridate) # for date changing
+
+file_path <- "data/Airbnb_Open_Data_cleaned_first.csv" 
+
+df_cleaned_first <- read_csv(file_path) %>% 
+  clean_names()
+
+head(df_cleaned_first)
+```
+
+```{r}
+# Step 8 & 9: type transform and missing value 
+
+# median
+median_reviews_per_month <- df_cleaned_first %>% 
+  pull(reviews_per_month) %>% 
+  median(na.rm = TRUE)
+
+median_availability <- df_cleaned_first %>% 
+  pull(availability_365) %>% 
+  median(na.rm = TRUE)
+
+# operation
+df_cleaned_second <- df_cleaned_first %>%
+  mutate(
+    # mutate value type
+    price = as.numeric(price),
+    service_fee = as.numeric(service_fee),
+    
+    reviews_per_month = replace_na(reviews_per_month, median_reviews_per_month),
+    
+    availability_365 = replace_na(availability_365, median_availability),
+    
+  )
+
+# check for missing value
+skimr::skim(df_cleaned_second)
+```
+
+```{r}
+# Step 10: change date
+
+df_cleaned_second  <- df_cleaned_second  %>%
+  mutate(
+    last_review = lubridate::mdy(last_review) # use mdy()
+  )
+
+# define date limit
+current_date_limit <- as.Date("2021-01-01") 
+
+# calculate median date
+median_review_date <- df_cleaned_second  %>% 
+  filter(!is.na(last_review) & last_review <= current_date_limit) %>% 
+  pull(last_review) %>% 
+  median(na.rm = TRUE)
+
+# change
+df_cleaned_second  <- df_cleaned_second  %>%
+  mutate(
+    # if last_review is NA or date exceeds limit, use median instead
+    last_review = if_else(is.na(last_review) | last_review > current_date_limit, 
+                          median_review_date, 
+                          last_review)
+  )
+
+# check date
+summary(df_cleaned_second$last_review)
+```
+
+```{r}
+# Step 11: duplicate data handling
+
+df_cleaned_second <- df_cleaned_second %>%
+  # set minimum_nights
+  mutate(
+    minimum_nights = case_when(
+      # no <0
+      minimum_nights <= 0 ~ 1,
+      # no outlier
+      minimum_nights > 365 ~ 365,
+      # everything else keep the same
+      TRUE ~ minimum_nights 
+    )
+  )
+
+# check lines
+print(paste("lines after duplicate data handling", nrow(df_cleaned_second)))
+
+# check
+summary(df_cleaned_second$minimum_nights)
+```
