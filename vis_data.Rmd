@@ -1,0 +1,528 @@
+---
+title: "vis_finalproject"
+author: "DYH"
+date: "2025-11-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r setup, include=FALSE}
+# --- R Setup 块 ---
+# 这个块用于加载所有必需的库。
+# 如果库未安装，它将首先尝试安装它们。
+
+# 需要安装的包列表
+packages_to_install <- c(
+  "tidyverse", # 用于数据处理 (dplyr, readr) 和绘图 (ggplot2)
+  "sf",        # 用于地理空间数据处理 (替代 geopandas)
+  "tmap",      # 用于创建专题地图 (替代 geoplot)
+  "plotly",    # 用于交互式图表 (替代 plotly.express)
+  "lubridate", # 用于处理日期
+  "gridExtra", # 用于排列多个 ggplot 图
+  "knitr"      # 用于美化表格输出
+)
+
+# 检查、安装和加载包
+for (pkg in packages_to_install) {
+  if (!require(pkg, character.only = TRUE)) {
+    install.packages(pkg)
+    library(pkg, character.only = TRUE)
+  }
+}
+
+# 设置 ggplot2 的默认主题
+theme_set(theme_minimal())
+```
+
+### 简介
+
+这个项目使用 R 和 R Markdown 对 Airbnb 纽约市 2019 年的数据集进行可视化和特征工程。我们将探索不同行政区、房间类型和价格之间的关系，并创建地理空间可视化。
+
+------------------------------------------------------------------------
+
+### 1. 加载和检查数据
+
+首先，我们加载数据并进行初步的清理和检查。
+
+```{r load-data, message=FALSE, warning=FALSE}
+# 从 CSV 文件加载数据
+data <- readr::read_csv('airbnb_nyc_clean.csv')
+
+# 显示前5行
+# Python: data.head()
+knitr::kable(head(data))
+```
+
+```{r data-info}
+# 检查数据结构、类型和缺失值
+# Python: data.info()
+str(data)
+
+# Python: data.describe()
+summary(data)
+```
+
+```{r check-nulls}
+# 检查每列的缺失值总数
+# Python: data.isnull().sum()
+colSums(is.na(data))
+```
+
+```{r clean-data}
+# 清理数据：
+# 1. 删除 'last_review' 和 'host_name' 列
+# 2. 用 0 填充 'reviews_per_month' 的缺失值
+
+# Python:
+# data.drop(['last_review','host_name'], axis=1, inplace=True)
+# data['reviews_per_month'].fillna(0, inplace=True)
+
+data_cleaned <- data %>%
+  select(-last_review, -host_name) %>%
+  mutate(reviews_per_month = tidyr::replace_na(reviews_per_month, 0))
+
+# 验证清理结果
+cat("清理后的缺失值总数:\n")
+colSums(is.na(data_cleaned))
+```
+
+------------------------------------------------------------------------
+
+### 2. 基本分类变量分析
+
+我们将可视化不同类别（如行政区、房间类型）的房源分布。
+
+#### 按行政区划分的房源
+
+```{r plot-boroughs-styled, message=FALSE, warning=FALSE}
+# Load 'forcats' for factor reordering (part of tidyverse)
+library(forcats) 
+
+# --- 修正 (Robust Version) ---
+# We now pre-calculate the counts and reorder the factor levels.
+# This avoids the error by not using stat_count() inside the plot.
+
+# 1. Calculate counts and reorder the 'neighbourhood_group' factor
+#    'fct_reorder' sorts the factor 'neighbourhood_group' by the count 'n',
+#    in descending order (.desc = TRUE).
+borough_data_to_plot <- data_cleaned %>%
+  count(neighbourhood_group, name = "n") %>%
+  mutate(
+    neighbourhood_group = fct_reorder(neighbourhood_group, n, .desc = TRUE)
+  )
+
+# 3. Plot using the new pre-counted data frame
+#    --- IMPORTANT ---
+#    We MUST use geom_col() now (not geom_bar).
+#    We provide 'y = n' explicitly.
+ggplot(borough_data_to_plot, aes(x = neighbourhood_group, y = n)) +
+  
+  geom_col(fill = "#56B4E9") + # Use geom_col() for pre-counted data
+  
+  # 1. All labels translated to English
+  labs(title = "NYC Airbnb Listing Count by Borough",
+       subtitle = "Manhattan and Brooklyn are the dominant boroughs",
+       x = "Borough",
+       y = "Number of Listings", # 'y' is now mapped to our count 'n'
+       caption = "Source: NYC Airbnb Data (2019)") +
+  
+  # 2. Apply the built-in 'theme_minimal()'
+  theme_minimal(base_family = "Arial") +
+  
+  # 3. Add extra tweaks to look professional (NYT style)
+  theme(
+    panel.grid.major.x = element_blank(), # Remove vertical grid lines
+    panel.grid.minor = element_blank(),   # Remove all minor grid lines
+    plot.title = element_text(face = "bold"), # Bold title
+    axis.text.x = element_text(angle = 45, hjust = 1) 
+  )
+  
+```
+
+*图表显示曼哈顿 (Manhattan) 和布鲁克林 (Brooklyn) 是房源最多的两个行政区。*
+
+#### 按房间类型划分的房源
+
+```{r plot-room-types}
+# Python (seaborn): sns.countplot(x='room_type', data=data_cleaned)
+ggplot(data_cleaned, aes(x = room_type)) +
+  geom_bar(fill = "darkorange") +
+  labs(title = "按房间类型划分的房源数量", x = "房间类型", y = "数量")
+```
+
+*图表显示“整套公寓 (Entire home/apt)”和“独立房间 (Private room)”是两种最主要的房间类型。*
+
+#### 各行政区的房间类型细分
+
+```{r plot-stacked-borough-room-styled, message=FALSE, warning=FALSE}
+# --- Styled Plot (English Labels + 'Minimal' Style) ---
+############################################################################
+# 1. (重要) 我们重用上一个代码块中计算出的行政区顺序 (borough_data_to_plot)
+#    以确保此图的 x 轴顺序与上一个图表一致（按总数排序）。
+#    我们提取该顺序 (levels) 并将其应用到我们的绘图数据中。
+
+# 确保 borough_data_to_plot 存在于环境中
+if (!exists("borough_data_to_plot")) {
+  # 如果不存在，重新创建它 (以防单独运行此块)
+  borough_data_to_plot <- data_cleaned %>%
+    count(neighbourhood_group, name = "n") %>%
+    mutate(
+      neighbourhood_group = fct_reorder(neighbourhood_group, n, .desc = TRUE)
+    )
+}
+
+# 提取已排序的行政区名称
+borough_order <- levels(borough_data_to_plot$neighbourhood_group)
+
+# 2. 将该顺序应用到我们的主数据框，仅用于绘图
+data_cleaned_ordered <- data_cleaned %>%
+  mutate(neighbourhood_group = factor(neighbourhood_group, levels = borough_order))
+
+# 3. 绘图 (Plot)
+ggplot(data_cleaned_ordered, aes(x = neighbourhood_group, fill = room_type)) +
+  
+  geom_bar(position = "stack") +
+  
+  # 4. 翻译所有标签为英文
+  labs(title = "Room Type Composition by Borough",
+       subtitle = "Manhattan is mostly 'Entire homes', others are more mixed",
+       x = "Borough",
+       y = "Number of Listings",
+       fill = "Room Type", # 这是图例 (legend) 的标题
+       caption = "Source: NYC Airbnb Data (2020)") +
+  
+  # 5. 应用 'theme_minimal()' 和自定义调整
+  theme_minimal(base_family = "Arial") +
+  theme(
+    panel.grid.major.x = element_blank(), # 移除垂直网格线
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) +
+  
+  # 6. 应用一个更专业的色板 (Viridis)
+  scale_fill_viridis_d(option = "cividis") # 或者 "mako", "viridis"
+```
+
+*此图显示了每个行政区内不同房间类型的构成。*
+
+------------------------------------------------------------------------
+
+### 3. 地理空间和价格分析
+
+这是分析的核心。我们将房源绘制在地图上，并分析价格分布。
+
+#### Top 10 热门社区
+
+```{r plot-top10-neighbourhoods-styled, message=FALSE, warning=FALSE}
+# --- Styled Plot (English Labels + 'Minimal' Style) ---
+
+# 1. 预先计算 Top 10 数据
+#    (用户原始代码已经正确实现了)
+top_10_neighbourhoods <- data_cleaned %>%
+  count(neighbourhood, sort = TRUE) %>%
+  top_n(10, n)
+
+# 2. 绘图 (Plot)
+#    我们使用 fct_reorder 来正确排序 X 轴
+ggplot(top_10_neighbourhoods, aes(x = fct_reorder(neighbourhood, n, .desc = TRUE), y = n)) +
+  
+  # 统一使用 geom_col 并设置专业颜色
+  geom_col(fill = "#56B4E9") + 
+  
+  # 3. 翻译所有标签为英文
+  labs(title = "Top 10 Neighbourhoods by Listing Count",
+       subtitle = "Specific areas like Williamsburg and Bedford-Stuyvesant dominate",
+       x = "Neighbourhood",
+       y = "Number of Listings",
+       caption = "Source: NYC Airbnb Data (2019)") +
+  
+  # 4. 应用 'theme_minimal()' 和自定义调整
+  theme_minimal(base_family = "Arial") +
+  theme(
+    panel.grid.major.x = element_blank(), # 移除垂直网格线
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold"),
+    # X轴标签需要倾斜，因为名称很长
+    axis.text.x = element_text(angle = 45, hjust = 1) 
+  )
+```
+
+#### 房源地理散点图
+
+```{r plot-geo-scatter-styled, message=FALSE, warning=FALSE}
+# --- 安装和加载必需的包 ---
+# 我们需要 'sf', 'maptiles', 和 'tidyterra'
+if (!require("maptiles")) {
+  install.packages("maptiles")
+  library(maptiles)
+}
+if (!require("sf")) {
+  install.packages("sf")
+  library(sf)
+}
+if (!require("tidyterra")) {
+  install.packages("tidyterra")
+  library(tidyterra)
+}
+
+# --- 1. 将数据转换为 'sf' 空间对象 ---
+data_sf <- sf::st_as_sf(data_cleaned, 
+                        coords = c("long", "lat"), 
+                        crs = 4326,
+                        remove = FALSE) 
+
+# --- 2. 自动获取地图背景图块 ---
+nyc_map_tiles <- maptiles::get_tiles(
+  data_sf, 
+  provider = "CartoDB.PositronNoLabels"
+)
+
+# --- 3. 绘图：地图在下，点在上 ---
+
+# --- 修正 ---
+# 'maptiles::layer_maptiles()' 是错误的
+# 正确的函数是 'tidyterra::geom_spatraster_rgb()'
+
+ggplot() +
+  # 首先绘制地图背景 (使用正确的函数)
+  tidyterra::geom_spatraster_rgb(data = nyc_map_tiles) +
+  
+  # 接着，使用 geom_sf 绘制我们的空间数据点
+  geom_sf(data = data_sf, 
+          aes(color = price), 
+          alpha = 0.1, 
+          size = 0.5) + 
+  
+  # 应用我们之前的颜色标度
+  scale_color_viridis_c(trans = "log10", 
+                        option = "magma",
+                        alpha = 0.8) +
+  
+  # 翻译为英文标签
+  labs(title = "NYC Airbnb Listing Distribution and Price",
+       subtitle = "Listings plotted over map, prices concentrated in Manhattan",
+       x = "Longitude", 
+       y = "Latitude",
+       color = "Price (Log)",
+       caption = "Source: NYC Airbnb Data (2019)") +
+  
+  # 应用我们的 'NYT-style' 主题
+  theme_minimal(base_family = "Arial") +
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1) 
+  )
+```
+
+*这张图清晰地勾勒出了纽约市的轮廓。价格较高的房源（黄色）明显集中在曼哈顿。*
+可交互的
+```{r plot-geo-scatter-interactive, message=FALSE, warning=FALSE}
+# --- 安装和加载 'leaflet' ---
+# Leaflet 是 R 中用于交互式地图的黄金标准
+if (!require("leaflet")) {
+  install.packages("leaflet")
+  library(leaflet)
+}
+library(dplyr) # for %>%
+
+# --- 1. 准备数据和调色板 ---
+# 为了有一个好的图例 (legend)，我们定义一个范围。
+# 我们使用 log10(price) 来处理价格，就像 ggplot 版本一样。
+# 过滤掉价格为0或极高的值，以便图例更有意义
+data_for_map <- data_cleaned %>%
+  filter(price > 0 & price <= 1000) %>%
+  mutate(price_log = log10(price)) # ggplot 用的是 log10(price)
+
+# 2. 创建一个调色板函数 (就像 scale_color_viridis)
+# 我们将 'magma' 调色板应用于 log(price)
+pal <- colorNumeric(
+  palette = "magma",
+  domain = data_for_map$price_log
+)
+
+# --- 3. 创建交互式 Leaflet 地图 ---
+# 这将替换静态的 ggplot 地图
+# 您可以在 RStudio 的输出窗口中缩放和平移
+
+leaflet(data_for_map) %>%
+  
+  # 添加 "NYT-style" 的简约底图 (CartoDB Positron)
+  addProviderTiles("CartoDB.PositronNoLabels") %>%
+  
+  # 添加点 (使用 CircleMarkers 以获得更好的性能)
+  addCircleMarkers(
+    lng = ~long,
+    lat = ~lat,
+    radius = 1,          # 小圆点
+    stroke = FALSE,      # 无边框
+    fillOpacity = 0.2,   # 设置透明度
+    color = ~pal(price_log), # 应用调色板
+    
+    # 创建悬停/点击时显示的弹出窗口 (英文)
+    popup = ~paste(
+      "<b>Name:</b>", name, "<br>",
+      "<b>Price:</b> $", price, "<br>",
+      "<b>Neighbourhood:</b>", neighbourhood, "<br>",
+      "<b>Type:</b>", room_type
+    )
+  ) %>%
+
+  # 添加图例
+  addLegend(
+    pal = pal,
+    values = ~price_log,
+    opacity = 1,
+    title = "Price (Log10)",
+    position = "bottomright",
+    # 自定义图例的刻度标签，使其显示为真实价格 (例如 100 而不是 2)
+    labFormat = labelFormat(transform = function(x) round(10^x)) 
+  )
+```
+
+```{r inspect-names}
+# 检查 data_cleaned 数据框中的实际列名
+names(data_cleaned)
+
+#### 社区价格分区统计图 (Choropleth)
+```
+
+**注意：** 此单元格需要 `neighbourhoods.geojson` 文件。
+
+```{r plot-choropleth, message=FALSE, warning=FALSE, results='hide'}
+# --- 这是 Python 中 geoplot 的 R 对应实现 --
+
+# 1. 加载地理边界文件
+# Python: ny = geopandas.read_file('neighbourhoods.geojson')
+# 注意：你需要有这个 geojson 文件在你的工作目录中
+tryCatch({
+  neighbourhoods_geo <- sf::st_read("neighbourhoods.geojson")
+  
+  # 2. 按社区计算价格中位数
+  # Python: data.groupby('neighbourhood')['price'].median()
+  price_by_neighbourhood <- data_cleaned %>%
+    group_by(neighbourhood) %>%
+    summarize(median_price = median(price, na.rm = TRUE))
+  
+  # 3. 将价格数据连接到地理数据
+  # Python: ny.merge(...)
+  # 我们使用 right_join 来保留所有的地理边界
+  map_data <- right_join(price_by_neighbourhood, neighbourhoods_geo, by = "neighbourhood")
+  
+  # 4. 使用 tmap 绘制分区统计图 (替代 geoplot)
+  # Python: geoplot.choropleth(ny, ...)
+  tm <- tm_shape(map_data) +
+    tm_polygons("median_price", 
+                style = "quantile", 
+                palette = "viridis",
+                title = "价格中位数 ($)",
+                popup.vars = c("neighbourhood", "median_price")) +
+    tm_layout(title = "纽约市各社区 Airbnb 价格中位数")
+  
+  # 显示地图
+  tm
+}, error = function(e) {
+  cat("错误：无法加载或处理 'neighbourhoods.geojson'。\n请确保该文件在您的工作目录中。\n", e$message)
+})
+```
+
+*(如果 `neighbourhoods.geojson` 文件可用，将在此处显示交互式地图)*
+
+#### 价格分布
+
+
+
+
+
+*原始价格数据（左图）是高度右偏的。取对数（右图）后，分布更接近正态分布，这有助于分析和建模。*
+
+#### 交互式地理散点图 (Plotly)  
+**dashboard interaction**
+
+
+```{r}
+ ###############################################################################################
+ # Python: px.scatter_mapbox(data, lat="latitude", lon="longitude", ...)
+library(plotly)
+library(dplyr)
+
+# 为了性能，我们只抽取 20000 个样本点来绘图
+data_sample <- data_cleaned %>% sample_n(min(20000, nrow(.)))
+
+plot_ly(data_sample, 
+        x = ~long, 
+        y = ~lat, 
+        color = ~room_type,  # 按房间类型着色
+        type = 'scattermapbox', 
+        mode = 'markers',
+        
+        # --- 英文标签 (悬停文本) ---
+        text = ~paste("Name:", name, "<br>Price: $", price, "<br>Type:", room_type), # 悬停文本
+        
+        marker = list(size = 5, opacity = 0.5)) %>%
+  
+  # --- 英文标签 (图表标题) ---
+  plotly::layout(title = 'Interactive Map of NYC Listings by Room Type', # <-- 已翻译
+                 mapbox = list(style = 'carto-positron', # 地图样式
+                               zoom = 9.5, # 缩放级别
+                               center = list(lon = -73.97, lat = 40.72))) # 地图中心
+```
+
+
+
+
+
+
+
+*这个图表探索了房源的受欢迎程度（通过评论数衡量）是否与其平均价格相关。*
+
+#### 最短入住夜数分布
+```{r}
+# 只需要运行一次
+install.packages("hrbrthemes")
+```
+
+
+```{r plot-min-nights-styled, message=FALSE, warning=FALSE}
+################################################################################################################
+
+# We are focusing on listings with 30 nights or less
+data_to_plot <- data_cleaned %>%
+  filter(minimum_nights <= 30)
+
+# --- Styled Plot (English Labels + 'Minimal' Style) ---
+
+ggplot(data_to_plot, aes(x = minimum_nights)) +
+  
+  geom_histogram(aes(y = after_stat(density)), 
+                 bins = 30, 
+                 fill = "#56B4E9", # A clean, light blue
+                 alpha = 0.8) +
+  
+  geom_density(color = "#003366", # A dark blue line
+               linewidth = 1) +
+  
+  labs(title = "Distribution of Minimum Nights",
+       subtitle = "Focusing on listings requiring 30 nights or less",
+       x = "Minimum Nights",
+       y = "Density (proportion of listings)",
+       caption = "Source: NYC Airbnb Data (2020)") +
+  
+  # 4. Use the built-in 'theme_minimal()'
+  theme_minimal(base_family = "Arial") +
+  
+  # 5. Add extra tweaks to look professional
+  theme(
+    panel.grid.major.x = element_blank(), # Remove vertical grid lines
+    panel.grid.minor = element_blank(),   # Remove minor grid lines
+    plot.title = element_text(face = "bold") # Bold title
+  )
+```
+
+
+
