@@ -1,0 +1,35 @@
+---
+title: "NY-ACS"
+output: pdf_document
+---
+
+```{r}
+library(tidycensus)
+library(sf)
+library(tigris)
+
+census_api_key("8f115ef276960ce1d8fe7d1a449dd616c8ecf785", install = TRUE, overwrite=TRUE)
+```
+
+```{R}
+# 下载全国 ZCTA 数据
+zcta_data <- get_acs(
+  geography = "zcta",
+  variables = c(
+    median_income = "B19013_001", 
+    population = "B01003_001",
+    median_rent = "B25064_001"
+  ),
+  year = 2020,
+  geometry = TRUE
+)
+
+# 取纽约市五个区的 shapefile
+nyc_counties <- counties(state = "NY", cb = TRUE, year = 2020) %>%
+  filter(NAME %in% c("New York", "Kings", "Queens", "Bronx", "Richmond"))
+
+# 用空间相交选出属于 NYC 的邮编区
+nyc_acs_data <- st_join(zcta_data, nyc_counties, join = st_intersects, left = FALSE)
+
+head(nyc_acs_data)
+```
