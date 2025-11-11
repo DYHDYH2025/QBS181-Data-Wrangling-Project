@@ -1,0 +1,181 @@
+---
+title: "Analysis"
+output: pdf_document
+---
+
+```{r}
+# Model Data
+
+library(DBI)
+library(RMySQL)
+library(dplyr)
+library(tidyverse)
+
+con <- dbConnect(
+  RMySQL::MySQL(),
+  dbname = "qbs181",
+  host = "localhost",
+  user = "michael",
+  password = "431679"
+)
+
+model_data <- dbGetQuery(con, "
+  SELECT
+    id,
+    neighbourhood_group,
+    cancellation_policy,
+    room_type,
+    construction_year,
+    price AS price_numeric,
+    LOG(price) AS log_price,
+    minimum_nights,
+    number_of_reviews,
+    availability_365,
+    service_fee,
+    reviews_per_month,
+    GEOID_x,
+    median_income,
+    population,
+    median_rent
+  FROM final_data
+  WHERE price > 0
+    AND median_income IS NOT NULL
+    AND room_type IS NOT NULL
+    AND neighbourhood_group IS NOT NULL;
+")
+
+nrow(model_data)
+glimpse(model_data)
+
+write_csv(model_data, "data/model_data.csv")
+```
+
+```{r}
+# Custom Function 1: Run model diagnostics (VIF, residual plots)
+run_model_diagnostics <- function(model) {
+  print("--- VIF (Multicollinearity) ---")
+  if (length(coef(model)) > 2) { # VIF requires at least two predictor variables
+    print(car::vif(model))
+  } else {
+    print("The model has too few variables to calculate VIF.")
+  }
+  
+  print("--- Residual Plots ---")
+  par(mfrow = c(2, 2))  # Arrange plots in a 2x2 grid
+  plot(model)           # Plot residual diagnostics
+  par(mfrow = c(1, 1))  # Reset plotting layout
+}
+```
+
+```{r}
+# 1. Multiple Linear Regression (MLR)
+
+mlr_model <- lm(
+  log_price ~ room_type + neighbourhood_group + minimum_nights +
+              number_of_reviews + availability_365 + 
+              median_income + median_rent + cancellation_policy,
+  data = model_data
+)
+
+# Display the model summary (coefficients, R-squared, p-values, etc.)
+summary(mlr_model)
+
+# 2. Run the custom diagnostic function
+run_model_diagnostics(mlr_model)
+
+```
+
+Model Results and Diagnostics
+
+The multiple linear regression model was fitted to explain variation in the log-transformed Airbnb price (log_price) using room type, neighborhood group, stay characteristics, and neighborhood-level socioeconomic indicators.
+The model’s explanatory power is extremely low (R² = 0.0003), suggesting that only a negligible fraction of price variability is captured by the selected predictors. Among all variables, only median rent is statistically significant (p ≈ 0.037), showing a weak negative association with price, while median income, minimum nights, and other factors are not significant.
+
+Variance Inflation Factors (VIFs) reveal moderate multicollinearity between median_income (VIF ≈ 8.1) and median_rent (VIF ≈ 7.8), indicating that these two variables capture overlapping regional effects and one should be removed in future models.
+
+Residual diagnostics show that linearity is approximately satisfied, but the residuals deviate from normality (S-shaped Q-Q plot) and exhibit mild heteroskedasticity (Scale-Location plot). A few high-leverage observations were detected but are not severe.
+Overall, the model performs poorly in predictive terms, implying that key structural or locational factors are missing. Future work should include more detailed spatial and property-level variables to improve explanatory power and model fit.
+
+```{r}
+nyc_acs_wide <- nyc_acs_data_transformed %>%
+  select(GEOID = GEOID.x, NAME = NAME.x, variable, estimate, geometry) %>%
+  pivot_wider(
+    names_from = variable,
+    values_from = estimate,
+    values_fn = mean
+  )
+
+plot_income_map <- function(nyc_acs_wide) {
+  ggplot(nyc_acs_wide) +
+    geom_sf(aes(fill = median_income), color = NA) +
+    scale_fill_viridis_c(
+      option = "plasma",
+      labels = scales::dollar,
+      na.value = "grey90"
+    ) +
+    labs(
+      title = "Median Household Income by ZIP Code (NYC, 2020)",
+      fill = "Median Income ($)"
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold", hjust = 0.5),
+      legend.position = "right"
+    )
+}
+
+plot_income_map(nyc_acs_wide)
+```
+
+```{r}
+model_data <- model_data %>%
+  left_join(
+    df_cleaned_first %>% select(id, lat, long),
+    by = "id"
+  )
+
+plot_airbnb_prices <- function(model_data) {
+  ggplot(data = model_data %>% filter(price_numeric < 1000)) +
+    geom_point(
+      aes(x = long, y = lat, color = price_numeric),
+      size = 0.7,
+      alpha = 0.6
+    ) +
+    scale_color_viridis_c(
+      option = "inferno",
+      trans = "log",
+      name = "Price (log scale)",
+      labels = scales::dollar
+    ) +
+    coord_equal() +
+    labs(
+      title = "NYC Airbnb Price Distribution (< $1000 Listings)",
+      x = "Longitude",
+      y = "Latitude"
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold", hjust = 0.5),
+      legend.position = "right"
+    )
+}
+
+plot_airbnb_prices(model_data)
+```
+
+(a) Median Household Income by ZIP Code (NYC, 2020)
+
+The first choropleth map visualizes the spatial distribution of median household income across ZIP Code Tabulation Areas (ZCTAs) in New York City.
+High-income neighborhoods are primarily concentrated in central and lower Manhattan, as well as parts of northwest Brooklyn.
+By contrast, the Bronx and southern Queens exhibit substantially lower income levels.
+This socioeconomic gradient provides essential context for understanding local disparities in housing affordability and Airbnb market segmentation.
+
+(b) Airbnb Price Distribution (< $1000 Listings)
+
+The second map plots individual Airbnb listings under $1000 per night, colored by price on a logarithmic scale.
+Listings are densely clustered in Manhattan and northern Brooklyn, particularly in touristic and central business districts.
+The highest prices (bright yellow points) are found in Midtown and Downtown Manhattan, reflecting premium demand and location-based price effects.
+
+(c) Combined Interpretation
+
+Together, these maps highlight a spatial alignment between economic prosperity and Airbnb pricing.
+Higher-income neighborhoods also tend to host higher-priced listings, suggesting that income and geographic desirability jointly influence market outcomes.
