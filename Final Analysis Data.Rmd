@@ -1,0 +1,72 @@
+---
+title: "Final Analysis Data"
+output: pdf_document
+---
+
+```{r}
+library(tidyverse)
+library(sf)
+
+airbnb_data_final_cleaned <- read.csv("data/airbnb_nyc_final_clean.csv")
+
+head(airbnb_data_final_cleaned)
+```
+
+### 空间连接 (Spatial Join / Relational Data)
+
+使用 `sf` 包执行空间连接，将 ACS 的社会经济变量附加到每个房源上.
+
+```{R}
+# 1. 将 Airbnb 数据（data.frame）转换为 sf 点对象
+airbnb_data_final_cleaned_sf <- airbnb_data_final_cleaned %>%
+  filter(!is.na(long) & !is.na(lat)) %>% # 确保有坐标
+  st_as_sf(coords = c("long", "lat"), crs = 4326) # WGS84 坐标系
+
+# 2. 确保 ACS 数据的坐标系 (CRS) 与 listings 一致
+nyc_acs_data_transformed <- st_transform(nyc_acs_data, crs = 4326)
+
+# 3. 执行空间连接 (st_join)
+joined_data_sf <- st_join(airbnb_data_final_cleaned_sf, nyc_acs_data_transformed, join = st_intersects)
+
+# 4. （可选）移除空间对象，转为普通 data.frame 以便建模
+final_analytics_base_table <- joined_data_sf %>%
+  st_drop_geometry() %>% 
+  as.data.frame()
+  
+head(final_analytics_base_table)
+
+final_analytics_base_table_wide <- final_analytics_base_table %>%
+  pivot_wider(names_from = variable, values_from = estimate, id_cols = id)
+```
+
+```{r}
+write_csv(final_analytics_base_table, "data/final_analytics_base_table.csv")
+```
+
+SQL for wide table and more cleaning
+
+```{r}
+final_analytics_base_table_wide <- read_csv(
+  "data/final_analytics_base_table_wide_clean.csv",
+  quote = "\"",
+  show_col_types = FALSE,
+  col_names = FALSE
+)
+
+nrow(final_analytics_base_table_wide)
+
+colnames(final_analytics_base_table_wide) <- c(
+  "id", "name", "host_id", "host_identity_verified", "host_name",
+  "neighbourhood_group", "neighbourhood", "instant_bookable",
+  "cancellation_policy", "room_type", "construction_year", "price",
+  "service_fee", "minimum_nights", "number_of_reviews", "last_review",
+  "reviews_per_month", "review_rate_number", "calculated_host_listings_count",
+  "availability_365", "house_rules", "GEOID_x", "NAME_x",
+  "median_income", "population", "median_rent"
+)
+```
+
+```{r}
+write_csv(final_analytics_base_table_wide, "data/final_data.csv")
+```
+
