@@ -87,18 +87,25 @@ Detailed instructions for each stage are provided below.
 3. Confirm that `Data/` and `Data Cleaning/Data/` directories are writable.
 
 ### 1. Clean Raw Airbnb Data
-- **File**: `Data Cleaning/Data Cleaning.Rmd`
+- **File**: `Airbnb_Open_Data.xlsx` and `Data Cleaning/Data Cleaning.Rmd`
 - **Objective**: harmonize the Airbnb dataset (from `Airbnb_Open_Data.xlsx` or `Airbnb_Open_Data_cleaned_first.csv`), fix types, and handle missing values.
 
 Key tasks:
-1. Open `Data Cleaning.Rmd` in RStudio and run all chunks sequentially.
-2. Operations performed include:
+
+1. Remove Redundant Columns. Delete columns with minimal information: license, country, and country code.
+2. Remove Duplicate Rows.Select the entire dataset → Data → Remove Duplicates (541 records removed).
+3. Fill Missing Text Values. In NAME and host name columns, use Find and Replace: Find: (leave blank). Replace with: blank
+4. Standardize Categorical Variables. Correct typos in neighbourhood group: manhatan → Manhattan, brookln → Brooklyn
+5. Clean Price and Service Fee Columns. Use Find and Replace to remove non-numeric symbols: Replace $ and , with nothing. Repeat for service fee.
+6. Preliminary Numeric and Date Validation. Sort minimum nights ascending → inspect for negative values (e.g., –1) and manually correct to 1 or 0.
+7. Open `Data Cleaning.Rmd` in RStudio and run all chunks sequentially.
+8. Operations performed include:
    - `janitor::clean_names()` for standardized column names.
    - Numeric casting for price-related attributes.
    - Median imputation for `reviews_per_month` and `availability_365`.
    - Date normalization for `last_review`, substituting out-of-range values with a median reference date.
    - Boundary enforcement on `minimum_nights` (1–365) to eliminate outliers.
-3. Outputs (saved under `Data Cleaning/Data/`): `Airbnb_Open_Data_cleaned_first.csv` and `df_cleaned_second.csv`.
+9. Outputs (saved under `Data Cleaning/Data/`): `Airbnb_Open_Data_cleaned_first.csv` and `df_cleaned_second.csv`.
 
 For alternative geographies or vintages, replace the raw file while preserving column semantics.
 
@@ -233,3 +240,4 @@ Store logs, configuration files, and environment notes for review and future ite
 - R community ecosystems: tidyverse, sf, leaflet, plotly, and related packages.
 
 Feedback, issues, or enhancement proposals are welcome. Please open an issue or submit a pull request to help improve the reproducibility and robustness of this project.
+
