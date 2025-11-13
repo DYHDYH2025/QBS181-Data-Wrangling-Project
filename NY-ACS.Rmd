@@ -12,7 +12,7 @@ census_api_key("8f115ef276960ce1d8fe7d1a449dd616c8ecf785", install = TRUE, overw
 ```
 
 ```{R}
-# 下载全国 ZCTA 数据
+# Download nationwide ZCTA data
 zcta_data <- get_acs(
   geography = "zcta",
   variables = c(
@@ -24,12 +24,13 @@ zcta_data <- get_acs(
   geometry = TRUE
 )
 
-# 取纽约市五个区的 shapefile
+# Retrieve shapefiles for the five NYC counties
 nyc_counties <- counties(state = "NY", cb = TRUE, year = 2020) %>%
   filter(NAME %in% c("New York", "Kings", "Queens", "Bronx", "Richmond"))
 
-# 用空间相交选出属于 NYC 的邮编区
+# Select ZCTAs belonging to NYC using spatial intersection
 nyc_acs_data <- st_join(zcta_data, nyc_counties, join = st_intersects, left = FALSE)
 
 head(nyc_acs_data)
+
 ```
