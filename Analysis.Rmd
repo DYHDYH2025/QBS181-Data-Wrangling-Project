@@ -14,9 +14,9 @@ library(tidyverse)
 con <- dbConnect(
   RMySQL::MySQL(),
   dbname = "qbs181",
-  host = "localhost",
-  user = "michael",
-  password = "431679"
+  host = "******",
+  user = "******",
+  password = "******"
 )
 
 model_data <- dbGetQuery(con, "
