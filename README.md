@@ -1,6 +1,7 @@
 # QBS181 NYC Airbnb Data Wrangling Project
 
-This document provides a comprehensive, professional English-language guide for fully reproducing the end-to-end data wrangling, spatial integration, modeling, and visualization pipeline implemented in this repository. New collaborators and evaluators can follow the steps below to recreate our workflow from raw inputs to final deliverables.
+This document provides a comprehensive, professional English-language guide for fully reproducing the end-to-end data wrangling, spatial integration, modeling, and visualization pipeline implemented in this repository. New collaborators and evaluators can follow the steps below to recreate our workflow from raw inputs
+to final deliverables.
 
 ---
 
@@ -240,4 +241,5 @@ Store logs, configuration files, and environment notes for review and future ite
 - R community ecosystems: tidyverse, sf, leaflet, plotly, and related packages.
 
 Feedback, issues, or enhancement proposals are welcome. Please open an issue or submit a pull request to help improve the reproducibility and robustness of this project.
+
 
