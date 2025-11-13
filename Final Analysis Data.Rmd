@@ -12,23 +12,22 @@ airbnb_data_final_cleaned <- read.csv("data/airbnb_nyc_final_clean.csv")
 head(airbnb_data_final_cleaned)
 ```
 
-### 空间连接 (Spatial Join / Relational Data)
+###  (Spatial Join / Relational Data)
 
-使用 `sf` 包执行空间连接，将 ACS 的社会经济变量附加到每个房源上.
 
 ```{R}
-# 1. 将 Airbnb 数据（data.frame）转换为 sf 点对象
+# 1. Convert Airbnb data (data.frame) to an sf point object
 airbnb_data_final_cleaned_sf <- airbnb_data_final_cleaned %>%
-  filter(!is.na(long) & !is.na(lat)) %>% # 确保有坐标
-  st_as_sf(coords = c("long", "lat"), crs = 4326) # WGS84 坐标系
+  filter(!is.na(long) & !is.na(lat)) %>% # ensure coordinates exist
+  st_as_sf(coords = c("long", "lat"), crs = 4326) # WGS84 coordinate system
 
-# 2. 确保 ACS 数据的坐标系 (CRS) 与 listings 一致
+# 2. Ensure ACS data CRS matches the listings
 nyc_acs_data_transformed <- st_transform(nyc_acs_data, crs = 4326)
 
-# 3. 执行空间连接 (st_join)
+# 3. Perform spatial join (st_join)
 joined_data_sf <- st_join(airbnb_data_final_cleaned_sf, nyc_acs_data_transformed, join = st_intersects)
 
-# 4. （可选）移除空间对象，转为普通 data.frame 以便建模
+# 4. (Optional) Remove spatial object and convert to regular data.frame for modeling
 final_analytics_base_table <- joined_data_sf %>%
   st_drop_geometry() %>% 
   as.data.frame()
@@ -37,6 +36,7 @@ head(final_analytics_base_table)
 
 final_analytics_base_table_wide <- final_analytics_base_table %>%
   pivot_wider(names_from = variable, values_from = estimate, id_cols = id)
+
 ```
 
 ```{r}
