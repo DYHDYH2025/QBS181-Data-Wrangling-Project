@@ -10,22 +10,19 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r setup, include=FALSE}
-# --- R Setup 块 ---
-# 这个块用于加载所有必需的库。
-# 如果库未安装，它将首先尝试安装它们。
+# --- R Setup  ---
 
-# 需要安装的包列表
 packages_to_install <- c(
-  "tidyverse", # 用于数据处理 (dplyr, readr) 和绘图 (ggplot2)
-  "sf",        # 用于地理空间数据处理 (替代 geopandas)
-  "tmap",      # 用于创建专题地图 (替代 geoplot)
-  "plotly",    # 用于交互式图表 (替代 plotly.express)
-  "lubridate", # 用于处理日期
-  "gridExtra", # 用于排列多个 ggplot 图
-  "knitr"      # 用于美化表格输出
+  "tidyverse", # For data wrangling (dplyr, readr) and visualization (ggplot2)
+  "sf",        # For geospatial data processing (R equivalent of geopandas)
+  "tmap",      # For creating thematic maps (alternative to geoplot)
+  "plotly",    # For interactive visualizations (alternative to plotly.express)
+  "lubridate", # For handling dates
+  "gridExtra", # For arranging multiple ggplot figures
+  "knitr"      # For cleaner table rendering in reports
 )
 
-# 检查、安装和加载包
+# Check, install, and load required packages
 for (pkg in packages_to_install) {
   if (!require(pkg, character.only = TRUE)) {
     install.packages(pkg)
@@ -33,14 +30,14 @@ for (pkg in packages_to_install) {
   }
 }
 
-# 设置 ggplot2 的默认主题
+# Set default ggplot2 theme
 theme_set(theme_minimal())
+
 ```
+Introduction
 
-### 简介
-
-这个项目使用 R 和 R Markdown 对 Airbnb 纽约市 2019 年的数据集进行可视化和特征工程。我们将探索不同行政区、房间类型和价格之间的关系，并创建地理空间可视化。
-
+This project uses R and R Markdown to visualize and engineer features from the 2019 NYC Airbnb dataset.
+We explore relationships across boroughs, room types, and prices, and create geospatial visualizations to better understand spatial patterns in the data.
 ------------------------------------------------------------------------
 
 ### 1. 加载和检查数据
@@ -523,6 +520,7 @@ ggplot(data_to_plot, aes(x = minimum_nights)) +
     plot.title = element_text(face = "bold") # Bold title
   )
 ```
+
 
 
 
