@@ -14,7 +14,7 @@ QBS181-Data-Wrangling-Project-main/
 ├── NY-ACS.Rmd                       # ACS (American Community Survey) data ingestion
 ├── vis_data.Rmd                     # Visualization and exploratory analysis
 ├── SQL_Commands.sql                 # MySQL scripts for wide-table construction/cleansing
-├── dw_data_approval (3).pdf         # Data-usage approval documentation
+├── dw_data_approval.pdf         # Data-usage approval documentation
 ├── Data/                            # Input and output data assets (see data dictionary)
 ├── Data Cleaning/                   # Cleaning scripts and intermediate artifacts
 │   ├── Data Cleaning.Rmd
@@ -23,7 +23,7 @@ QBS181-Data-Wrangling-Project-main/
 │       ├── Airbnb_Open_Data_cleaned_first.csv
 │       ├── df_cleaned_second.csv
 │       └── airbnb_nyc_final_clean.csv
-└── README_en.md
+└── README.md
 ```
 
 ---
@@ -47,7 +47,7 @@ Detailed instructions for each stage are provided below.
 ## Environment & Dependencies
 
 ### Operating System
-- Windows 10/11 (example path: `D:\2025_Fall\datawrang\group\QBS181-Data-Wrangling-Project-main`).
+- Windows 10/11 (example path: `D:\...\datawrang\group\QBS181-Data-Wrangling-Project-main`).
 - macOS or Linux are also supported; adjust file paths and package installation commands accordingly.
 
 ### R Toolchain
@@ -57,7 +57,7 @@ Detailed instructions for each stage are provided below.
 - In institutional networks, set a stable CRAN mirror to avoid timeouts.
 
 ### Python Environment (Reverse Geocoding)
-- Python 3.9+.
+- Python 3.8+.
 - Suggested virtual environment setup:
   ```bash
   pip install pandas geopy
@@ -83,12 +83,12 @@ Detailed instructions for each stage are provided below.
 1. Clone or download the repository.
 2. In RStudio, set the working directory to the project root:
    ```r
-   setwd("D:/2025_Fall/datawrang/group/QBS181-Data-Wrangling-Project-main")
+   setwd("D:/.../datawrang/group/QBS181-Data-Wrangling-Project-main")
    ```
 3. Confirm that `Data/` and `Data Cleaning/Data/` directories are writable.
 
-### 1. Clean Raw Airbnb Data
-- **File**: `Airbnb_Open_Data.xlsx` and `Data Cleaning/Data Cleaning.Rmd`
+### 1. Clean Raw New York city Airbnb Data
+- **File**: `Airbnb_Open_Data.xlsx` and `Data Cleaning/Data Cleaning.Rmd` from *Inside Airbnb*
 - **Objective**: harmonize the Airbnb dataset (from `Airbnb_Open_Data.xlsx` or `Airbnb_Open_Data_cleaned_first.csv`), fix types, and handle missing values.
 
 Key tasks:
@@ -124,7 +124,7 @@ The script reads `df_cleaned_second.csv` and outputs `airbnb_nyc_final_clean.csv
 
 ### 3. Retrieve ACS Socioeconomic Data
 - **File**: `NY-ACS.Rmd`
-- **Objective**: extract ZIP Code Tabulation Area (ZCTA) level indicators for NYC from the ACS 5-year dataset.
+- **Objective**: extract ZIP Code Tabulation Area (ZCTA) level indicators for NYC from the ACS 5-year(from 2015 to 2020) dataset.
 
 Workflow:
 1. Register your Census API key within R:
@@ -156,7 +156,7 @@ tidycensus::census_api_key("YOUR_KEY", install = TRUE, overwrite = TRUE)
    CREATE DATABASE IF NOT EXISTS qbs181;
    USE qbs181;
    ```
-2. Execute `SQL_Commands.sql` (edit file paths as needed):
+2. Execute `SQL_Commands.sql` (remember edit file paths as needed!):
    ```bash
    mysql -u <username> -p --local-infile=1 qbs181 < SQL_Commands.sql
    ```
@@ -241,6 +241,7 @@ Store logs, configuration files, and environment notes for review and future ite
 - R community ecosystems: tidyverse, sf, leaflet, plotly, and related packages.
 
 Feedback, issues, or enhancement proposals are welcome. Please open an issue or submit a pull request to help improve the reproducibility and robustness of this project.
+
 
 
 
