@@ -13,13 +13,13 @@ output:
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
 
-# 自定义函数库 (Custom Functions Library)
+# Custom Functions Library
 
-本文档包含项目中使用的所有自定义函数。这些函数涵盖了数据清理、可视化、建模和空间分析等各个方面。
+This Rmd file contains all custom functions used in the project.
 
-## 1. 数据清理函数 (Data Cleaning Functions)
+## 1.Data Cleaning Functions
 
-### 1.1 清理 Airbnb 数据主函数
+### 1.1 Cleaning airbnb main functions
 
 ```{r clean-airbnb-main}
 #' Clean raw Airbnb data
@@ -653,6 +653,7 @@ run_model_diagnostics(model)
 
 4. Performance: For large datasets, some functions (especially spatial join functions) may take a longer time to run.
 ---
+
 
 
 
