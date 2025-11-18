@@ -22,57 +22,57 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ### 1.1 清理 Airbnb 数据主函数
 
 ```{r clean-airbnb-main}
-#' 清理 Airbnb 原始数据
+#' Clean raw Airbnb data
 #' 
-#' @description 对 Airbnb 数据进行全面的清理，包括标准化列名、类型转换、缺失值处理等
-#' @param data 原始 Airbnb 数据框
-#' @param file_path 可选，CSV 文件路径（如果从文件读取）
-#' @return 清理后的数据框
+#' @description Performs comprehensive cleaning on Airbnb data, including standardizing column names, type conversion, missing value handling, etc.
+#' @param data Raw Airbnb dataframe
+#' @param file_path Optional, CSV file path (if reading from file)
+#' @return Cleaned dataframe
 #' @examples
 #' df_cleaned <- clean_airbnb_data(raw_data)
 clean_airbnb_data <- function(data = NULL, file_path = NULL) {
-  # 加载必要的库
+  # Load necessary libraries
   library(tidyverse)
   library(janitor)
   library(lubridate)
   
-  # 如果提供了文件路径，从文件读取
+  # If file path is provided, read from file
   if (!is.null(file_path)) {
     data <- read_csv(file_path)
   }
   
-  # 标准化列名
+  # Standardize column names
   data <- data %>% clean_names()
   
-  # 类型转换
+  # Type conversion
   data <- data %>%
     mutate(
       price = as.numeric(price),
       service_fee = as.numeric(service_fee)
     )
   
-  # 处理缺失值
+  # Handle missing values
   data <- handle_missing_values(data)
   
-  # 清理日期列
+  # Clean date column
   data <- clean_date_column(data, date_col = "last_review")
   
-  # 清理 minimum_nights 列
+  # Clean minimum_nights column
   data <- clean_minimum_nights(data)
   
   return(data)
 }
 ```
 
-### 1.2 处理缺失值
+### 1.2 Handle Missing Values
 
 ```{r handle-missing-values}
-#' 使用中位数填充缺失值
+#' Fill missing values with median
 #' 
-#' @description 对指定数值列使用中位数填充缺失值
-#' @param data 数据框
-#' @param cols 要处理的列名向量，默认为 reviews_per_month 和 availability_365
-#' @return 处理后的数据框
+#' @description Fills missing values in specified numeric columns using the median
+#' @param data Dataframe
+#' @param cols Vector of column names to process, defaults to reviews_per_month and availability_365
+#' @return Processed dataframe
 #' @examples
 #' df <- handle_missing_values(df, cols = c("reviews_per_month", "availability_365"))
 handle_missing_values <- function(data, cols = c("reviews_per_month", "availability_365")) {
@@ -86,16 +86,16 @@ handle_missing_values <- function(data, cols = c("reviews_per_month", "availabil
 }
 ```
 
-### 1.3 清理日期列
+### 1.3 Clean Date Column
 
 ```{r clean-date-column}
-#' 清理和标准化日期列
+#' Clean and standardize date column
 #' 
-#' @description 将日期列转换为标准格式，并处理异常日期值
-#' @param data 数据框
-#' @param date_col 日期列名
-#' @param date_limit 日期上限，默认 "2021-01-01"
-#' @return 处理后的数据框
+#' @description Converts date column to standard format and handles abnormal date values
+#' @param data Dataframe
+#' @param date_col Date column name
+#' @param date_limit Date upper limit, default "2021-01-01"
+#' @return Processed dataframe
 #' @examples
 #' df <- clean_date_column(df, date_col = "last_review")
 clean_date_column <- function(data, date_col = "last_review", date_limit = "2021-01-01") {
@@ -106,16 +106,16 @@ clean_date_column <- function(data, date_col = "last_review", date_limit = "2021
     return(data)
   }
   
-  # 转换为日期格式
+  # Convert to date format
   data[[date_col]] <- mdy(data[[date_col]])
   
-  # 计算有效日期的中位数
+  # Calculate median of valid dates
   date_limit_date <- as.Date(date_limit)
   valid_dates <- data[[date_col]][!is.na(data[[date_col]]) & 
                                    data[[date_col]] <= date_limit_date]
   median_date <- median(valid_dates, na.rm = TRUE)
   
-  # 替换异常日期
+  # Replace abnormal dates
   data <- data %>%
     mutate(!!sym(date_col) := if_else(
       is.na(!!sym(date_col)) | !!sym(date_col) > date_limit_date,
@@ -127,16 +127,16 @@ clean_date_column <- function(data, date_col = "last_review", date_limit = "2021
 }
 ```
 
-### 1.4 清理 minimum_nights 列
+### 1.4 Clean minimum_nights Column
 
 ```{r clean-minimum-nights}
-#' 清理 minimum_nights 列，处理异常值
+#' Clean minimum_nights column, handle outliers
 #' 
-#' @description 将 minimum_nights 限制在合理范围内（1-365）
-#' @param data 数据框
-#' @param min_val 最小值，默认 1
-#' @param max_val 最大值，默认 365
-#' @return 处理后的数据框
+#' @description Restricts minimum_nights to a reasonable range (1-365)
+#' @param data Dataframe
+#' @param min_val Minimum value, default 1
+#' @param max_val Maximum value, default 365
+#' @return Processed dataframe
 #' @examples
 #' df <- clean_minimum_nights(df)
 clean_minimum_nights <- function(data, min_val = 1, max_val = 365) {
@@ -158,18 +158,18 @@ clean_minimum_nights <- function(data, min_val = 1, max_val = 365) {
 }
 ```
 
-## 2. 可视化函数 (Visualization Functions)
+## 2. Visualization Functions
 
-### 2.1 绘制收入地图
+### 2.1 Plot Income Map
 
 ```{r plot-income-map}
-#' 绘制纽约市 ZIP 代码区域的中位数收入地图
+#' Plot map of median income by NYC ZIP code
 #' 
-#' @description 使用 ggplot2 和 sf 创建收入分布的分区统计图
-#' @param nyc_acs_wide 包含 ACS 数据和几何信息的 sf 对象
-#' @param income_col 收入列名，默认 "median_income"
-#' @param title 图表标题
-#' @return ggplot 对象
+#' @description Creates a choropleth map of income distribution using ggplot2 and sf
+#' @param nyc_acs_wide sf object containing ACS data and geometry information
+#' @param income_col Income column name, default "median_income"
+#' @param title Chart title
+#' @return ggplot object
 #' @examples
 #' plot_income_map(nyc_acs_wide)
 plot_income_map <- function(nyc_acs_wide, 
@@ -199,16 +199,16 @@ plot_income_map <- function(nyc_acs_wide,
 }
 ```
 
-### 2.2 绘制 Airbnb 价格分布地图
+### 2.2 Plot scatter of Airbnb listing prices
 
 ```{r plot-airbnb-prices}
-#' 绘制 Airbnb 房源价格分布散点图
+#' Plot scatter map of Airbnb listing prices
 #' 
-#' @description 在地图上显示 Airbnb 房源的位置和价格
-#' @param model_data 包含房源数据的数据框，需要包含 lat, long, price_numeric 列
-#' @param max_price 最大显示价格，默认 1000
-#' @param title 图表标题
-#' @return ggplot 对象
+#' @description Displays location and price of Airbnb listings on a map
+#' @param model_data Dataframe containing listing data, must include lat, long, price_numeric columns
+#' @param max_price Maximum display price, default 1000
+#' @param title Chart title
+#' @return ggplot object
 #' @examples
 #' plot_airbnb_prices(model_data, max_price = 1000)
 plot_airbnb_prices <- function(model_data, 
@@ -230,33 +230,22 @@ plot_airbnb_prices <- function(model_data,
       name = "Price (log scale)",
       labels = dollar
     ) +
-    coord_equal() +
-    labs(
-      title = title,
-      x = "Longitude",
-      y = "Latitude"
-    ) +
-    theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(face = "bold", hjust = 0.5),
-      legend.position = "right"
-    )
-}
+    coord_equal()
 ```
 
-### 2.3 绘制行政区分布
+### 2.3 Plot Borough Distribution
 
 ```{r plot-borough-distribution}
-#' 绘制各行政区的房源数量分布
+#' Plot the distribution of listings by borough
 #' 
-#' @description 创建条形图显示各行政区的房源数量
-#' @param data 包含 neighbourhood_group 列的数据框
-#' @param title 图表标题
-#' @return ggplot 对象
+#' @description Create a bar chart showing the number of listings in each borough
+#' @param data Dataframe containing neighbourhood_group column
+#' @param title Chart title
+#' @return ggplot object
 #' @examples
 #' plot_borough_distribution(data_cleaned)
 plot_borough_distribution <- function(data, 
-                                     title = "NYC Airbnb Listing Count by Borough") {
+                                      title = "NYC Airbnb Listing Count by Borough") {
   library(ggplot2)
   library(forcats)
   library(dplyr)
@@ -286,28 +275,28 @@ plot_borough_distribution <- function(data,
 }
 ```
 
-### 2.4 绘制房间类型分布
+### 2.4 Plot Room Type Distribution
 
 ```{r plot-room-type-distribution}
-#' 绘制房间类型分布图
+#' Plot room type distribution
 #' 
-#' @description 创建条形图或堆叠图显示房间类型分布
-#' @param data 包含 room_type 列的数据框
-#' @param by_borough 是否按行政区分组，默认 FALSE
-#' @param title 图表标题
-#' @return ggplot 对象
+#' @description Create a bar chart or stacked bar chart showing room type distribution
+#' @param data Dataframe containing room_type column
+#' @param by_borough Whether to group by borough, default FALSE
+#' @param title Chart title
+#' @return ggplot object
 #' @examples
 #' plot_room_type_distribution(data_cleaned)
 #' plot_room_type_distribution(data_cleaned, by_borough = TRUE)
 plot_room_type_distribution <- function(data, 
-                                       by_borough = FALSE,
-                                       title = "Room Type Distribution") {
+                                        by_borough = FALSE,
+                                        title = "Room Type Distribution") {
   library(ggplot2)
   library(dplyr)
   library(viridis)
   
   if (by_borough) {
-    # 堆叠条形图
+    # Stacked bar chart
     p <- ggplot(data, aes(x = neighbourhood_group, fill = room_type)) +
       geom_bar(position = "stack") +
       scale_fill_viridis_d(option = "cividis") +
@@ -322,7 +311,7 @@ plot_room_type_distribution <- function(data,
         axis.text.x = element_text(angle = 45, hjust = 1)
       )
   } else {
-    # 简单条形图
+    # Simple bar chart
     p <- ggplot(data, aes(x = room_type)) +
       geom_bar(fill = "darkorange") +
       labs(
@@ -337,17 +326,17 @@ plot_room_type_distribution <- function(data,
 }
 ```
 
-## 3. 建模函数 (Modeling Functions)
+## 3. Modeling functions
 
-### 3.1 模型诊断函数
+### 3.1 Model Diagnostics Function
 
 ```{r run-model-diagnostics}
-#' 运行回归模型诊断
+#' Run regression model diagnostics
 #' 
-#' @description 计算 VIF（方差膨胀因子）并绘制残差诊断图
-#' @param model 线性回归模型对象（lm）
-#' @param plot_residuals 是否绘制残差图，默认 TRUE
-#' @return 无返回值，直接打印结果和图表
+#' @description Calculates VIF (Variance Inflation Factor) and plots residual diagnostic plots
+#' @param model Linear regression model object (lm)
+#' @param plot_residuals Whether to plot residuals, default TRUE
+#' @return No return value, prints results and charts directly
 #' @examples
 #' model <- lm(log_price ~ room_type + neighbourhood_group, data = model_data)
 #' run_model_diagnostics(model)
@@ -371,23 +360,23 @@ run_model_diagnostics <- function(model, plot_residuals = TRUE) {
 }
 ```
 
-### 3.2 准备建模数据
+### 3.2 Prepare Modeling Data
 
 ```{r prepare-model-data}
-#' 从数据库或 CSV 文件准备建模数据
+#' Prepare modeling data from database or CSV file
 #' 
-#' @description 从 MySQL 数据库或 CSV 文件读取建模所需的数据
-#' @param source 数据源类型："database" 或 "csv"
-#' @param db_connection 数据库连接对象（如果 source = "database"）
-#' @param csv_path CSV 文件路径（如果 source = "csv"）
-#' @param table_name 数据库表名，默认 "final_data"
-#' @return 建模数据框
+#' @description Reads data required for modeling from MySQL database or CSV file
+#' @param source Data source type: "database" or "csv"
+#' @param db_connection Database connection object (if source = "database")
+#' @param csv_path CSV file path (if source = "csv")
+#' @param table_name Database table name, default "final_data"
+#' @return Modeling dataframe
 #' @examples
-#' # 从数据库读取
+#' # Read from database
 #' con <- dbConnect(RMySQL::MySQL(), dbname = "qbs181", ...)
 #' model_data <- prepare_model_data("database", db_connection = con)
 #' 
-#' # 从 CSV 读取
+#' # Read from CSV
 #' model_data <- prepare_model_data("csv", csv_path = "data/model_data.csv")
 prepare_model_data <- function(source = "database",
                                db_connection = NULL,
@@ -435,45 +424,45 @@ prepare_model_data <- function(source = "database",
 }
 ```
 
-## 4. 空间分析函数 (Spatial Analysis Functions)
+## 4. Spatial Analysis Functions
 
-### 4.1 空间连接 Airbnb 和 ACS 数据
+### 4.1 Spatial Join Airbnb and ACS Data
 
 ```{r spatial-join-airbnb-acs}
-#' 执行 Airbnb 数据与 ACS 数据的空间连接
+#' Perform spatial join of Airbnb and ACS data
 #' 
-#' @description 将 Airbnb 房源点数据与 ACS 区域数据通过空间连接合并
-#' @param airbnb_data Airbnb 数据框，需要包含 lat 和 long 列
-#' @param acs_data ACS 数据 sf 对象
-#' @param crs 坐标参考系统，默认 4326 (WGS84)
-#' @param drop_geometry 是否删除几何信息，默认 TRUE
-#' @return 连接后的数据框
+#' @description Merges Airbnb listing point data with ACS regional data via spatial join
+#' @param airbnb_data Airbnb dataframe, must contain lat and long columns
+#' @param acs_data ACS sf object
+#' @param crs Coordinate reference system, default 4326 (WGS84)
+#' @param drop_geometry Whether to drop geometry info, default TRUE
+#' @return Joined dataframe
 #' @examples
 #' joined_data <- spatial_join_airbnb_acs(airbnb_data, nyc_acs_data)
 spatial_join_airbnb_acs <- function(airbnb_data, 
-                                   acs_data,
-                                   crs = 4326,
-                                   drop_geometry = TRUE) {
+                                    acs_data,
+                                    crs = 4326,
+                                    drop_geometry = TRUE) {
   library(sf)
   library(dplyr)
   
-  # 确保 Airbnb 数据有坐标
+  # Ensure Airbnb data has coordinates
   airbnb_data <- airbnb_data %>%
     filter(!is.na(long) & !is.na(lat))
   
-  # 转换为 sf 对象
+  # Convert to sf object
   airbnb_sf <- airbnb_data %>%
     st_as_sf(coords = c("long", "lat"), crs = crs)
   
-  # 确保 ACS 数据的 CRS 一致
+  # Ensure ACS data CRS matches
   if (st_crs(acs_data)$epsg != crs) {
     acs_data <- st_transform(acs_data, crs = crs)
   }
   
-  # 执行空间连接
+  # Perform spatial join
   joined_data <- st_join(airbnb_sf, acs_data, join = st_intersects)
   
-  # 如果需要，删除几何信息
+  # Drop geometry if requested
   if (drop_geometry) {
     joined_data <- joined_data %>%
       st_drop_geometry() %>%
@@ -484,21 +473,21 @@ spatial_join_airbnb_acs <- function(airbnb_data,
 }
 ```
 
-### 4.2 创建宽表格式数据
+### 4.2 Create Wide Table Format Data
 
 ```{r create-wide-table}
-#' 将长格式 ACS 数据转换为宽格式
+#' Convert long format ACS data to wide format
 #' 
-#' @description 将包含 variable 和 estimate 列的长格式数据转换为宽格式
-#' @param long_data 长格式数据框，需要包含 variable 和 estimate 列
-#' @param id_cols 用作 ID 的列名向量
-#' @param value_fn 聚合函数，默认 mean
-#' @return 宽格式数据框
+#' @description Converts long format data containing variable and estimate columns to wide format
+#' @param long_data Long format dataframe, must contain variable and estimate columns
+#' @param id_cols Vector of column names to use as ID
+#' @param value_fn Aggregation function, default mean
+#' @return Wide format dataframe
 #' @examples
 #' wide_data <- create_wide_table(long_data, id_cols = c("id", "GEOID"))
 create_wide_table <- function(long_data, 
-                             id_cols = "id",
-                             value_fn = mean) {
+                              id_cols = "id",
+                              value_fn = mean) {
   library(tidyr)
   library(dplyr)
   
@@ -514,17 +503,17 @@ create_wide_table <- function(long_data,
 }
 ```
 
-## 5. 工具函数 (Utility Functions)
+## 5. Utility Functions
 
-### 5.1 检查数据质量
+### 5.1 Check Data Quality
 
 ```{r check-data-quality}
-#' 检查数据质量
+#' Check data quality
 #' 
-#' @description 检查数据框的缺失值、重复值等质量问题
-#' @param data 数据框
-#' @param print_summary 是否打印摘要，默认 TRUE
-#' @return 包含质量检查结果的列表
+#' @description Checks dataframe for quality issues such as missing values and duplicates
+#' @param data Dataframe
+#' @param print_summary Whether to print summary, default TRUE
+#' @return List containing quality check results
 #' @examples
 #' quality_report <- check_data_quality(data)
 check_data_quality <- function(data, print_summary = TRUE) {
@@ -552,14 +541,14 @@ check_data_quality <- function(data, print_summary = TRUE) {
 }
 ```
 
-### 5.2 加载项目所需的包
+### 5.2 Load Project Packages
 
 ```{r load-project-packages}
-#' 加载项目所需的所有 R 包
+#' Load all R packages required for the project
 #' 
-#' @description 检查并安装（如需要）项目所需的所有 R 包
-#' @param install_missing 是否安装缺失的包，默认 TRUE
-#' @return 无返回值
+#' @description Checks and installs (if needed) all R packages required for the project
+#' @param install_missing Whether to install missing packages, default TRUE
+#' @return No return value
 #' @examples
 #' load_project_packages()
 load_project_packages <- function(install_missing = TRUE) {
@@ -587,41 +576,41 @@ load_project_packages <- function(install_missing = TRUE) {
 }
 ```
 
-## 6. 使用示例 (Usage Examples)
+## 6. Usage Examples
 
-### 6.1 完整的数据清理流程
+### 6.1 Complete Data Cleaning Workflow
 
 ```{r example-cleaning, eval=FALSE}
-# 加载包
+# Load packages
 load_project_packages()
 
-# 清理 Airbnb 数据
+# Clean Airbnb data
 df_cleaned <- clean_airbnb_data(file_path = "data/Airbnb_Open_Data_cleaned_first.csv")
 
-# 检查数据质量
+# Check data quality
 quality_report <- check_data_quality(df_cleaned)
 ```
 
-### 6.2 完整的可视化流程
+### 6.2 Complete Visualization Workflow
 
 ```{r example-visualization, eval=FALSE}
-# 绘制行政区分布
+# Plot borough distribution
 plot_borough_distribution(df_cleaned)
 
-# 绘制房间类型分布
+# Plot room type distribution
 plot_room_type_distribution(df_cleaned, by_borough = TRUE)
 
-# 绘制价格分布地图（需要包含坐标信息）
+# Plot price distribution map (requires coordinate info)
 plot_airbnb_prices(model_data)
 ```
 
-### 6.3 完整的建模流程
+### 6.3 Complete Modeling Workflow
 
 ```{r example-modeling, eval=FALSE}
-# 准备建模数据
+# Prepare modeling data
 model_data <- prepare_model_data("csv", csv_path = "data/model_data.csv")
 
-# 构建模型
+# Build model
 model <- lm(
   log_price ~ room_type + neighbourhood_group + minimum_nights +
               number_of_reviews + availability_365 + 
@@ -629,42 +618,42 @@ model <- lm(
   data = model_data
 )
 
-# 运行诊断
+# Run diagnostics
 run_model_diagnostics(model)
 ```
 
-## 7. 函数索引 (Function Index)
+## 7. Function Index
 
-| 函数名 | 类别 | 描述 |
-|--------|------|------|
-| `clean_airbnb_data()` | 数据清理 | 清理 Airbnb 原始数据 |
-| `handle_missing_values()` | 数据清理 | 使用中位数填充缺失值 |
-| `clean_date_column()` | 数据清理 | 清理和标准化日期列 |
-| `clean_minimum_nights()` | 数据清理 | 清理 minimum_nights 列 |
-| `plot_income_map()` | 可视化 | 绘制收入分布地图 |
-| `plot_airbnb_prices()` | 可视化 | 绘制价格分布地图 |
-| `plot_borough_distribution()` | 可视化 | 绘制行政区分布 |
-| `plot_room_type_distribution()` | 可视化 | 绘制房间类型分布 |
-| `run_model_diagnostics()` | 建模 | 运行模型诊断 |
-| `prepare_model_data()` | 建模 | 准备建模数据 |
-| `spatial_join_airbnb_acs()` | 空间分析 | 空间连接 Airbnb 和 ACS 数据 |
-| `create_wide_table()` | 空间分析 | 创建宽表格式数据 |
-| `check_data_quality()` | 工具函数 | 检查数据质量 |
-| `load_project_packages()` | 工具函数 | 加载项目所需的包 |
-
----
-
-## 注意事项 (Notes)
-
-1. **依赖包**: 所有函数都依赖于特定的 R 包，使用前请确保已安装所需的包。可以使用 `load_project_packages()` 函数自动安装和加载。
-
-2. **数据格式**: 请确保输入数据符合函数要求的格式。例如，空间分析函数需要数据包含正确的坐标列（lat, long）或几何信息。
-
-3. **错误处理**: 某些函数包含基本的错误处理，但如果遇到问题，请检查输入数据的格式和内容。
-
-4. **性能**: 对于大型数据集，某些函数（特别是空间连接函数）可能需要较长时间运行。
+| Function Name | Category | Description |
+|:---|:---|:---|
+| `clean_airbnb_data()` | Data Cleaning | Clean raw Airbnb data |
+| `handle_missing_values()` | Data Cleaning | Fill missing values with median |
+| `clean_date_column()` | Data Cleaning | Clean and standardize date column |
+| `clean_minimum_nights()` | Data Cleaning | Clean minimum_nights column |
+| `plot_income_map()` | Visualization | Plot income distribution map |
+| `plot_airbnb_prices()` | Visualization | Plot price distribution map |
+| `plot_borough_distribution()` | Visualization | Plot borough distribution |
+| `plot_room_type_distribution()` | Visualization | Plot room type distribution |
+| `run_model_diagnostics()` | Modeling | Run model diagnostics |
+| `prepare_model_data()` | Modeling | Prepare modeling data |
+| `spatial_join_airbnb_acs()` | Spatial Analysis | Spatial join Airbnb and ACS data |
+| `create_wide_table()` | Spatial Analysis | Create wide format data |
+| `check_data_quality()` | Utility | Check data quality |
+| `load_project_packages()` | Utility | Load packages required for the project |
 
 ---
 
-*最后更新: `r Sys.Date()`*
+## Notes
+
+1. Dependencies: All functions depend on specific R packages. Ensure required packages are installed before use. You can use load_project_packages() function to automatically install and load them.
+
+2. Data Format: Ensure input data meets the format required by the functions. For example, spatial analysis functions require data to contain correct coordinate columns (lat, long) or geometry information.
+
+3. Error Handling: Some functions contain basic error handling, but if issues arise, please check input data format and content.
+
+4. Performance: For large datasets, some functions (especially spatial join functions) may take a longer time to run.
+---
+
+
+
 
