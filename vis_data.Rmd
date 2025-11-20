@@ -36,7 +36,7 @@ theme_set(theme_minimal())
 ```
 Introduction
 
-This project uses R and R Markdown to visualize and engineer features from the 2019 NYC Airbnb dataset.
+This project uses R and R Markdown to visualize and engineer features from the 2020 NYC Airbnb dataset.
 We explore relationships across boroughs, room types, and prices, and create geospatial visualizations to better understand spatial patterns in the data.
 ------------------------------------------------------------------------
 
@@ -129,7 +129,7 @@ ggplot(borough_data_to_plot, aes(x = neighbourhood_group, y = n)) +
        subtitle = "Manhattan and Brooklyn are the dominant boroughs",
        x = "Borough",
        y = "Number of Listings", # 'y' is now mapped to our count 'n'
-       caption = "Source: NYC Airbnb Data (2019)") +
+       caption = "Source: NYC Airbnb Data (2020)") +
   
   # 2. Apply the built-in 'theme_minimal()'
   theme_minimal(base_family = "Arial") +
@@ -241,7 +241,7 @@ ggplot(top_10_neighbourhoods, aes(x = fct_reorder(neighbourhood, n, .desc = TRUE
        subtitle = "Specific areas like Williamsburg and Bedford-Stuyvesant dominate",
        x = "Neighbourhood",
        y = "Number of Listings",
-       caption = "Source: NYC Airbnb Data (2019)") +
+       caption = "Source: NYC Airbnb Data (2020)") +
   
   # 4. # Apply theme_minimal() with custom styling adjustments
   theme_minimal(base_family = "Arial") +
@@ -310,7 +310,7 @@ ggplot() +
        x = "Longitude", 
        y = "Latitude",
        color = "Price (Log)",
-       caption = "Source: NYC Airbnb Data (2019)") +
+       caption = "Source: NYC Airbnb Data (2020)") +
   
   # Apply 'NYT-style' theme
   theme_minimal(base_family = "Arial") +
