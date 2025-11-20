@@ -46,7 +46,7 @@ Firstly, we read in data and clean data
 
 ```{r load-data, message=FALSE, warning=FALSE}
 # read in data from CSV
-data <- readr::read_csv('airbnb_nyc_clean.csv')
+data <- readr::read_csv('Data/airbnb_nyc_final_clean.csv')
 
 # Display first 5 row
 # Python: data.head()
@@ -80,6 +80,10 @@ colSums(is.na(data))
 data_cleaned <- data %>%
   select(-last_review, -host_name) %>%
   mutate(reviews_per_month = tidyr::replace_na(reviews_per_month, 0))
+
+data_cleaned <- data_cleaned %>%
+  filter(neighbourhood_group != "Unresolved_API") %>%
+  mutate(neighbourhood_group = factor(neighbourhood_group))
 
 # Verify cleaning results
 cat("Total missing values after cleaning:\n")
@@ -268,12 +272,12 @@ if (!require("tidyterra")) {
 }
 
 # --- 1. Convert the dataset into an 'sf' spatial object ---
-data_sf <- sf::st_as_sf(data_cleaned, 
-                        coords = c("long", "lat"), 
-                        crs = 4326,
-                        remove = FALSE) 
+data_sf <- data_cleaned %>%
+  filter(!is.na(lat), !is.na(long)) %>%
+  st_as_sf(coords = c("long", "lat"), crs = 4326, remove = FALSE)
 
-# --- 2. utomatically fetch map background tiles ---
+
+# --- 2. automatically fetch map background tiles ---
 nyc_map_tiles <- maptiles::get_tiles(
   data_sf, 
   provider = "CartoDB.PositronNoLabels"
@@ -394,27 +398,21 @@ names(data_cleaned)
 **Note: This choropleth requires the neighbourhoods.geojson file.**
 
 ```{r plot-choropleth, message=FALSE, warning=FALSE, results='hide'}
-# --- This is the R version of what geoplot does in Python ---
 
 # 1. Load geographic boundary file
-# Python: ny = geopandas.read_file('neighbourhoods.geojson')
-# #    Note: You need to have this geojson file in your working directory
 tryCatch({
   neighbourhoods_geo <- sf::st_read("neighbourhoods.geojson")
   
   # 2. Calculate median price by neighborhood
-  # Python: data.groupby('neighbourhood')['price'].median()
   price_by_neighbourhood <- data_cleaned %>%
     group_by(neighbourhood) %>%
     summarize(median_price = median(price, na.rm = TRUE))
   
   # # 3. Join the price data with the geographic boundaries
-  # Python: ny.merge(...)
-  # # We use right_join to retain all geographic boundaries.
-  map_data <- right_join(price_by_neighbourhood, neighbourhoods_geo, by = "neighbourhood")
+  map_data <- neighbourhoods_geo %>%
+  left_join(price_by_neighbourhood, by = "neighbourhood")
   
   # 4. Use tmap to create a choropleth map (as an alternative to geoplot)
-  # Python: geoplot.choropleth(ny, ...)
   tm <- tm_shape(map_data) +
     tm_polygons("median_price", 
                 style = "quantile", 
@@ -426,7 +424,7 @@ tryCatch({
   # Show Map
   tm
 }, error = function(e) {
-  cat("Error: Unable to load or process 'neighbourhoods.geojson'.\nPlease make sure the file is available in your working directory.\n", e$message)
+  cat("Error: Unable to load or process 'neighbourhoods.geojson'.\nPlease make sure the file is available in your working directory.\n", e$message)})
 ```
 
 *If the `neighbourhoods.geojson` file is available, an interactive map will be displayed here*
@@ -445,7 +443,6 @@ tryCatch({
 
 ```{r}
  ###############################################################################################
- # Python: px.scatter_mapbox(data, lat="latitude", lon="longitude", ...)
 library(plotly)
 library(dplyr)
 
@@ -480,10 +477,6 @@ plot_ly(data_sample,
 *This plot explores whether a listing’s popularity is related to its average price.*
 
 #### Distribution of Minimum Nights
-```{r}
-# Run only one time
-install.packages("hrbrthemes")
-```
 
 
 ```{r plot-min-nights-styled, message=FALSE, warning=FALSE}
